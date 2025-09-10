@@ -49,7 +49,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: process.env.SWAGGER_URL || `http://localhost:${PORT}`,
+        url: 'https://spintellegence-backend.azurewebsites.net',
       },
     ],
     components: {
