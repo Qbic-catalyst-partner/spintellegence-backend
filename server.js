@@ -49,7 +49,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: 'https://spintellegence-backend.azurewebsites.net',
+        url: 'https://spintellegence-backend-aahdgvdcf7hgdudk.centralindia-01.azurewebsites.net/',
       },
     ],
     components: {
