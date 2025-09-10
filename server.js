@@ -28,7 +28,15 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // Connect to DB
-client.connect();
+client.connect()
+  .then(() => {
+    console.log('✅ Connected to PostgreSQL');
+  })
+  .catch((err) => {
+    console.error('❌ Failed to connect to PostgreSQL:', err.message);
+    // Don't exit, let app still run to show errors on front-end or logs
+  });
+
 
 // Swagger configuration
 const swaggerOptions = {
