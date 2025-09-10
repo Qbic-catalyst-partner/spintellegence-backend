@@ -1,10 +1,13 @@
 {
   "name": "spintel",
   "version": "1.0.0",
-  "description": "Spintellegence for data analaysis and dashboarding",
-  "main": "index.js",
+  "description": "Spintellegence for data analysis and dashboarding",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": "20.x"
   },
   "author": "",
   "license": "ISC",
