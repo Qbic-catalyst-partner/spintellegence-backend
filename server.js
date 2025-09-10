@@ -120,7 +120,8 @@ app.use('/homeScreenGraph', authenticateToken, require('./routes/homeScreenGraph
 app.use('/profile', authenticateToken, require('./routes/profile'));
 
 // Start server
-app.listen(PORT, () => {
+
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is now listening at port ${PORT}`);
   console.log(`Swagger docs available at http://localhost:${PORT}/api-docs`);
 });
