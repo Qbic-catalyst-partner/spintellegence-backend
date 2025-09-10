@@ -127,7 +127,7 @@ app.use('/productChart', authenticateToken, require('./routes/productChart'));
 app.use('/unit_per_kg_charts', authenticateToken, require('./routes/unit_per_kg_charts'));
 app.use('/ukgSummarys', authenticateToken, require('./routes/ukgSummarys'));
 app.use('/export', authenticateToken, require('./routes/export'));
-app.use('/auth', authenticateToken, require('./routes/auth'));
+app.use('/auth', require('./routes/auth'));
 app.use('/password', require('./routes/password'));
 app.use('/homeScreenGraph', authenticateToken, require('./routes/homeScreenGraph'));
 app.use('/profile', authenticateToken, require('./routes/profile'));
