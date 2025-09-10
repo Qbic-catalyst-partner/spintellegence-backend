@@ -9,6 +9,11 @@ const { authenticateToken } = require('./middleware/auth');
 const app = express();
 const PORT = process.env.PORT;
 
+if (!PORT) {
+  console.error('Error: PORT environment variable is not set.');
+  process.exit(1);
+}
+
 // ✅ Enable CORS (allow all origins)
 app.use(cors()); 
 
