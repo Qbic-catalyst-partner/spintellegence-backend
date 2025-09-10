@@ -7,7 +7,7 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
 const { authenticateToken } = require('./middleware/auth');
 const app = express();
-const PORT = process.env.PORT || 3300;
+const PORT = process.env.PORT;
 
 // ✅ Enable CORS (allow all origins)
 app.use(cors()); 
