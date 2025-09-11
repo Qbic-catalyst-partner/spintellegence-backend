@@ -12,11 +12,12 @@ const client = require('../db/connection'); // your pg client
  *   description: APIs to change or update user password
  */
 
+
 /**
  * @swagger
  * /password/change-password:
  *   post:
- *     summary: Change user password (requires old password)
+ *     summary: Change user password in both users and approval_list tables
  *     tags: [Password]
  *     requestBody:
  *       required: true
@@ -25,22 +26,18 @@ const client = require('../db/connection'); // your pg client
  *           schema:
  *             type: object
  *             required:
- *               - user_id
- *               - oldPassword
+ *               - email
  *               - newPassword
  *             properties:
- *               user_id:
+ *               email:
  *                 type: string
- *                 example: "UNI003"
- *               oldPassword:
- *                 type: string
- *                 example: oldpass123
+ *                 example: "user@example.com"
  *               newPassword:
  *                 type: string
  *                 example: newpass456
  *     responses:
  *       200:
- *         description: Password changed successfully
+ *         description: Password changed successfully in both tables
  *         content:
  *           application/json:
  *             schema:
@@ -51,38 +48,48 @@ const client = require('../db/connection'); // your pg client
  *                   example: Password changed successfully
  *       400:
  *         description: Missing required fields
- *       401:
- *         description: Old password incorrect
  *       404:
  *         description: User not found
  *       500:
  *         description: Internal server error
  */
 router.post('/change-password', async (req, res) => {
-  const { user_id, oldPassword, newPassword } = req.body;
+  const { email, newPassword } = req.body;
 
-  if (!user_id || !oldPassword || !newPassword) {
+  if (!email || !newPassword) {
     return res.status(400).json({ message: 'Missing required fields' });
   }
 
   try {
-    const userResult = await client.query('SELECT password FROM users WHERE user_id=$1', [user_id]);
+    const userResult = await client.query('SELECT password FROM users WHERE email=$1', [email]);
     if (userResult.rows.length === 0) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    const hashedPassword = userResult.rows[0].password;
-    const isMatch = await bcrypt.compare(oldPassword, hashedPassword);
-
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Old password is incorrect' });
-    }
-
     const newHashedPassword = await bcrypt.hash(newPassword, 10);
-    await client.query('UPDATE users SET password=$1 WHERE user_id=$2', [newHashedPassword, user_id]);
 
-    res.json({ message: 'Password changed successfully' });
+    // Begin transaction to ensure atomic update
+    await client.query('BEGIN');
+
+    // Update users table
+    await client.query(
+      'UPDATE users SET password=$1 WHERE email=$2',
+      [newHashedPassword, email]
+    );
+
+    // Update approval_list table
+    await client.query(
+      'UPDATE approval_list SET password=$1 WHERE email=$2',
+      [newHashedPassword, email]
+    );
+
+    // Commit transaction
+    await client.query('COMMIT');
+
+    res.status(200).json({ message: 'Password changed successfully' });
   } catch (err) {
+    // Roll back on error to avoid partial update
+    await client.query('ROLLBACK');
     console.error('Error changing password:', err);
     res.status(500).json({ message: 'Internal server error' });
   }
