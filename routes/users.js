@@ -388,65 +388,76 @@ router.get('/user_list', authenticateToken, async (req, res) => {
  *         description: Login failed
  */
 router.post('/consultants/login', async (req, res) => {
-    const { email, password } = req.body;
+  const { email, password } = req.body;
 
-    try {
-        // Step 1: Fetch consultant info from `consultants` table
-        const result = await client.query(
-            'SELECT * FROM consultants WHERE email = $1',
-            [email]
-        );
+  try {
+    const result = await client.query(
+      'SELECT * FROM consultants WHERE email = $1',
+      [email]
+    );
 
-        if (result.rows.length === 0)
-            return res.status(400).send('Consultant not found');
-
-        const consultant = result.rows[0];
-
-        // Debug logging
-        console.log('Consultant Email:', consultant.email);
-        console.log('Entered Password:', password);
-        console.log('Stored Password:', consultant.password);
-
-        // Step 2: Compare password (plain-text for now — WARNING: not secure)
-        const isMatch = password === consultant.password;
-
-        if (!isMatch) {
-            console.log('Password does not match');
-            return res.status(401).send('Invalid credentials');
-        }
-
-        // Step 3: Generate JWT token
-        const token = jwt.sign(
-            {
-                consultant_id: consultant.consultant_id,
-                email: consultant.email,
-                role: consultant.role
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: '1h' }
-        );
-
-        // Step 4: Send response with consultant details
-        res.json({
-            token,
-            consultant: {
-                consultant_id: consultant.consultant_id,
-                first_name: consultant.first_name,
-                last_name: consultant.last_name,
-                email: consultant.email,
-                role: consultant.role,
-                status: consultant.status,
-                consultant_organisation_name: consultant.consultant_organisation_name,
-                phone: consultant.phone
-            }
-        });
-
-    } catch (err) {
-        console.error('Consultant login error:', err.message);
-        res.status(500).send('Login failed');
+    if (result.rows.length === 0) {
+      return res.status(400).send('Consultant not found');
     }
-});
 
+    const consultant = result.rows[0];
+    const storedPassword = consultant.password;
+
+    let isMatch = false;
+
+    // Step 1: Try bcrypt comparison if password looks hashed
+    if (storedPassword && storedPassword.startsWith('$2')) {
+      isMatch = await bcrypt.compare(password, storedPassword);
+    } else {
+      // Step 2: Fall back to plain-text comparison
+      isMatch = password === storedPassword;
+
+      // Step 3 (optional): Rehash plain-text password to bcrypt and update DB
+      if (isMatch) {
+        const hashed = await bcrypt.hash(password, 10);
+        await client.query(
+          'UPDATE consultants SET password = $1 WHERE consultant_id = $2',
+          [hashed, consultant.consultant_id]
+        );
+        console.log(`Password for ${consultant.email} upgraded to bcrypt.`);
+      }
+    }
+
+    if (!isMatch) {
+      return res.status(401).send('Invalid credentials');
+    }
+
+    // Step 4: Generate JWT token
+    const token = jwt.sign(
+      {
+        consultant_id: consultant.consultant_id,
+        email: consultant.email,
+        role: consultant.role
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    // Step 5: Send response
+    res.json({
+      token,
+      consultant: {
+        consultant_id: consultant.consultant_id,
+        first_name: consultant.first_name,
+        last_name: consultant.last_name,
+        email: consultant.email,
+        role: consultant.role,
+        status: consultant.status,
+        consultant_organisation_name: consultant.consultant_organisation_name,
+        phone: consultant.phone
+      }
+    });
+
+  } catch (err) {
+    console.error('Consultant login error:', err.message);
+    res.status(500).send('Login failed');
+  }
+});
 
 
 module.exports = router;
