@@ -64,12 +64,13 @@ router.get('/org-count/:consultant_id', async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
 /**
  * @swagger
  * /consultanthome/mapped-orgs/{consultant_id}:
  *   get:
  *     summary: Get organization details mapped to a consultant
- *     description: Returns a list of organizations (org_id, org_name, org_code) mapped to the given consultant based on org_mapping field.
+ *     description: Returns a list of organizations (org_id, org_name, org_code) mapped to the given consultant.
  *     parameters:
  *       - in: path
  *         name: consultant_id
@@ -89,57 +90,80 @@ router.get('/org-count/:consultant_id', async (req, res) => {
  *                 properties:
  *                   org_id:
  *                     type: string
- *                     example: ORG001
  *                   org_name:
  *                     type: string
- *                     example: My Organization
  *                   org_code:
  *                     type: string
- *                     example: ORG001
  *       404:
  *         description: Consultant not found or no orgs mapped
  *       500:
  *         description: Server error
  */
-
 router.get('/mapped-orgs/:consultant_id', async (req, res) => {
   const consultantId = req.params.consultant_id;
 
   try {
-    const consultantResult = await client.query(
-      `SELECT org_mapping FROM consultants WHERE consultant_id = $1`,
+    const result = await client.query(
+      'SELECT org_mapping FROM consultants WHERE consultant_id = $1',
       [consultantId]
     );
 
-    if (consultantResult.rows.length === 0) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ message: 'Consultant not found' });
     }
 
-    const orgMappingStr = consultantResult.rows[0].org_mapping;
+    let orgMappingRaw = result.rows[0].org_mapping;
 
-    if (!orgMappingStr) {
+    if (!orgMappingRaw) {
       return res.status(404).json({ message: 'No organizations mapped to this consultant' });
     }
 
-    const orgIds = orgMappingStr.split(',').map(id => id.trim());
 
-    if (orgIds.length === 0) {
+
+    // If the orgMappingRaw is already an array, use it directly
+    // If it's a string like '{"ORG001","UNI0024","UNI0026"}', parse it:
+    let orgMapping;
+
+    if (Array.isArray(orgMappingRaw)) {
+      orgMapping = orgMappingRaw;
+    } else if (typeof orgMappingRaw === 'string') {
+      // Clean and parse the string representation of the array
+      orgMapping = orgMappingRaw
+        .replace(/^{|}$/g, '')    // Remove braces
+        .split(',')              // Split by comma
+        .map(item => item.trim().replace(/^"|"$/g, ''))  // Trim spaces and remove quotes
+        .filter(Boolean);        // Remove empty strings
+    } else {
+      // Unexpected format
+      return res.status(500).json({ message: 'Unexpected org_mapping format' });
+    }
+
+
+    if (orgMapping.length === 0) {
       return res.status(404).json({ message: 'No valid orgs found in org_mapping' });
     }
 
-    const placeholders = orgIds.map((_, index) => `$${index + 1}`).join(',');
+    const placeholders = orgMapping.map((_, i) => `$${i + 1}`).join(',');
+
     const orgQuery = `
       SELECT org_id, org_name, org_code
       FROM organisation
-      WHERE org_id IN (${placeholders})
+      WHERE org_code IN (${placeholders})
     `;
 
-    const orgResult = await client.query(orgQuery, orgIds);
 
-    res.json(orgResult.rows);
+    const orgResult = await client.query(orgQuery, orgMapping);
+
+
+    if (orgResult.rows.length === 0) {
+      return res.status(404).json({ message: 'No matching organizations found' });
+    }
+
+    return res.status(200).json(orgResult.rows);
+
   } catch (error) {
     console.error('Error fetching mapped organizations:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    return res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
