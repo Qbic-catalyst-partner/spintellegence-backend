@@ -224,7 +224,7 @@ router.post('/update-password', authenticateToken, async (req, res) => {
 
 /**
  * @swagger
- * /consultants/update-password:
+ * /password/consultants/update-password:
  *   post:
  *     summary: Update consultant password (authenticated)
  *     tags: [Consultant Password]
@@ -290,7 +290,7 @@ router.post('/consultants/update-password', authenticateToken, async (req, res) 
 
 /**
  * @swagger
- * /consultants/forgot-password:
+ * /password/consultants/forgot-password:
  *   post:
  *     summary: Reset consultant password via email (forgot password)
  *     tags: [Consultant Password]
@@ -357,3 +357,4 @@ router.post('/consultants/forgot-password', async (req, res) => {
 
 
 module.exports = router;
+
